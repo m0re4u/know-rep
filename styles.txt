@@ -1,0 +1,6 @@
+comparison sudoku / greater-than sudoku
+samurai sudoku
+lucky 7 sudoku
+odd/even sudoku + combi?
+kropki
+
