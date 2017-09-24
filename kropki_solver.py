@@ -18,7 +18,7 @@ for name in data:
     match = re.findall("\d+", name)[0]
     solkey = "{}.solution.gif".format(match)
     if solkey in soldata:
-        solutions.append("{}.raw.gif".format(match))
+        solutions.append(("{}.raw.gif".format(match), "{}.solution.gif".format(match)))
 
 print("Found {} sudoku/solution combinations!".format(len(solutions)))
 
@@ -74,7 +74,7 @@ for k in range(N):
                  for i in range(M) for j in range(M)]
             cnf = cnf + exactly_one(v)
 
-constraints = data[solutions[0]]
+constraints = data[solutions[0][0]]
 
 
 for constrain in constraints:
@@ -111,9 +111,13 @@ print("Generated {} clauses".format(len(cnf)))
 
 for solution in pycosat.itersolve(cnf):
     X = [inverse_transform(v) for v in solution if v > 0]
+    sol = []
     for i, cell in enumerate(sorted(X, key=lambda h: h[0] * N * N + h[1] * N)):
-        print(cell[2] + 1, " ", end='')
-        if (i + 1) % N == 0:
-            print(" ")
-
-    print(" ")
+        # print(cell[2] + 1, " ", end='')
+        sol.append(cell[2] + 1)
+        # if (i + 1) % N == 0:
+        #     print(" ")
+    # print(" ")
+    if sol == soldata[solutions[0][1]]:
+        print("Found the correct solution:")
+        print(sol)
