@@ -3,13 +3,15 @@ import sys
 import json
 import re
 import argparse
-import pytesseract
 import urllib.request as ul
 from PIL import Image
 
 
+NSUDOKUS = 130
+
+
 def download_data():
-    for i in range(1, 130):
+    for i in range(1, NSUDOKUS):
         empty_url = "https://www.janko.at/Raetsel/Sudoku-Kropki/{:03d}.{}.gif".format(i, 'c')
         solution_url = "https://www.janko.at/Raetsel/Sudoku-Kropki/{:03d}.{}.gif".format(i, 'd')
         empty_filename = "data/{:03d}.raw.gif".format(i)
@@ -26,8 +28,11 @@ def download_data():
 def parse_raw(filename, verbose=False, check_image=False):
     # Color to text
     c2t = {
-        (0, 0, 0): "black", (255, 255, 255): "white", (231, 231, 231): "white",
-        (153, 153, 153): "grey", (8, 8, 8): "border"
+        (0, 0, 0): "black", (51, 51, 51): "black",
+        (255, 255, 255): "white", (231, 231, 231): "white",
+        (153, 153, 153): "grey", (170, 170, 170): "grey",
+        (8, 8, 8): "border", (89, 89, 89): "border", (62, 62, 62): "border",
+        (63, 63, 63): "border", (90, 90, 90): "border"
     }
     im = Image.open(filename)
     rgb_im = im.convert('RGB')
@@ -39,11 +44,18 @@ def parse_raw(filename, verbose=False, check_image=False):
     elif im.size == (275, 275):
         xindices = [32, 62, 88, 122, 152, 178, 212, 242]
         yindices = [18, 48, 78, 108, 138, 168, 198, 228, 258]
+    elif im.size == (273, 273):
+        xindices = [31, 61, 87, 121, 151, 177, 211, 241]
+        yindices = [15, 45, 75, 105, 135, 165, 195, 225, 255]
     else:
         print("Image not parsed: unknown image size")
         return
+    if verbose:
+        print("File: {}".format(filename))
     for i, x in enumerate(xindices):
         for j, y in enumerate(yindices):
+            if verbose:
+                print("i: {}, {}x{} | {} and {}".format(i, x, y, rgb_im.getpixel((x, y)), rgb_im.getpixel((y, x))))
             # Vertical borders
             if (i == 2 or i == 5) and c2t[rgb_im.getpixel((x, y))] == "border":
                 # On thick borders, do special case
@@ -87,7 +99,36 @@ def transpose_sudoku(sudoku):
     return las
 
 
+def get_solutions_from_web():
+    """
+    Get the solution to a sudoku from the internet
+    """
+    sol_dict = {}
+    for i in range(1, NSUDOKUS):
+        url = "https://www.janko.at/Raetsel/Sudoku-Kropki/{:03d}.a.htm".format(i)
+        with ul.urlopen(url) as response:
+            data = response.read()  # a `bytes` object
+            ret = [x.decode("utf-8") for x in data.split()]
+            a1 = ret.index("solution")
+            a2 = ret.index("end")
+            solution = []
+            for j in range(a1 + 1, a2):
+                solution.append(int(ret[j]))
+        assert len(solution) == 81
+        sol_dict["{:03d}".format(i)] = solution
+        print("{:03d} out of {} solutions".format(i, NSUDOKUS - 1), end='\r')
+    with open("solutions.json", 'w') as solution_file:
+        json.dump(sol_dict, solution_file)
+    print("Parsed {} solutions from the web!".format(len(sol_dict)))
+
+
 def parse_solution(filename, verbose=False, check_image=False):
+    """
+    Uses the provided solution image to extract the solution, but is really
+    unstable(current version results in ~50/NSUDOKUS solutions)
+    """
+    import pytesseract
+
     exclude_transpose = ["001"]
     res = pytesseract.image_to_string(Image.open(filename))
     print(filename)
@@ -132,12 +173,16 @@ def parse_solution(filename, verbose=False, check_image=False):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Create a dataset of kropki sudoku's to use in \
+                     testing a solver.")
     parser.add_argument("-d", "--download", help="Download kropki data images",
                         action="store_true")
     parser.add_argument("-p", "--parse_raw", help="Parse empty images to data format",
                         action="store_true")
     parser.add_argument("-s", "--parse_solution", help="Parse solution images to data format",
+                        action="store_true")
+    parser.add_argument("-w", "--web_solution", help="Retrieve the solution from the web",
                         action="store_true")
     parser.add_argument("-v", "--verbose", help="More debugging output",
                         action="store_true")
@@ -163,6 +208,7 @@ if __name__ == '__main__':
             with open("parsed.json", 'w') as out:
                 json.dump(codes, out)
     if args.parse_solution:
+        print("[!!!] WARNING [!!!]: unstable solution provider")
         sols = {}
         parsed_files = 0
         for filename in os.listdir("data"):
@@ -179,5 +225,7 @@ if __name__ == '__main__':
                 parsed_files += 1
         print("Parsed {} solution files!".format(parsed_files))
         if parsed_files != 0:
-            with open("solution.json", 'w') as out:
+            with open("solutions.json", 'w') as out:
                 json.dump(sols, out)
+    if args.web_solution:
+        get_solutions_from_web()

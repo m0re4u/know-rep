@@ -3,14 +3,15 @@
 -----
  * Tested on Python 3.5.2+
  * [pycosat](https://pypi.python.org/pypi/pycosat)
- * [pytesseract(Only for generating the dataset)](https://github.com/madmaze/pytesseract)
  * [Pillow(Only for generating the dataset)](https://pillow.readthedocs.io/en/latest/installation.html)
+### Optional
+ * [pytesseract(Only for generating the dataset)](https://github.com/madmaze/pytesseract)
 
 ## Usage
 -----
 To generate the dataset from scratch:
 ```
-python3 kropki_generate.py -dps
+python3 kropki_generate.py -dpw
 ```
 
 To solve a sudoku:
