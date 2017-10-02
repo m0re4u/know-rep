@@ -186,7 +186,9 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("-v", "--verbose", help="More debugging output",
                         action="store_true")
-    parser.add_argument("-c", "--check_image", help="Make test images to show where dots were found",
+    parser.add_argument("-c", "--check_image", help="Make test images to show \
+                        where dots were found. A green dot inside a circle \
+                        indicates a parsed circle",
                         action="store_true")
     args = parser.parse_args()
     if args.download:
