@@ -15,19 +15,22 @@ with open('parsed.json') as data_file:
 with open('solutions.json') as solution_file:
     soldata = json.load(solution_file)
 
-solutions = []
+sudokus = {}
 for name in data:
     match = re.findall("\d+", name)[0]
-    solkey = "{}.solution.gif".format(match)
-    if solkey in soldata:
-        solutions.append(("{}.raw.gif".format(match), "{}.solution.gif".format(match)))
+    if match in soldata:
+        sudokus[match] = {
+            "solution": soldata[match],
+            "data": data[name]
+        }
 
-print("Found {} sudoku/solution combinations!".format(len(solutions)))
+print("Found {} sudoku/solution combinations!".format(len(sudokus)))
 
 # constants
 N = 9
 M = 3
 cnf = []
+
 
 def exactly_one(variables):
     cnf = [variables]
@@ -56,6 +59,7 @@ def inverse_transform(v):
 def transformCell(cell):
     return cell[0] * N * N + cell[1] * N + cell[2] + 1
 
+
 def makeCNF(constraints):
     cnf = []
 
@@ -64,10 +68,10 @@ def makeCNF(constraints):
         for s in range(N):
             cnf = cnf + exactly_one([transform(i, j, s) for j in range(N)])
             cnf = cnf + exactly_one([transform(j, i, s) for j in range(N)])
-    
+
         for j in range(N):
             cnf = cnf + exactly_one([transform(i, j, k) for k in range(N)])
-    
+
     # Sub-matrix constraints
     for k in range(N):
         for x in range(M):
@@ -75,11 +79,10 @@ def makeCNF(constraints):
                 v = [transform(y * M + i, x * M + j, k)
                      for i in range(M) for j in range(M)]
                 cnf = cnf + exactly_one(v)
-    
+
     # handle dots
     for constrain in constraints:
-
-        #handle white dot
+        # handle white dot
         if(constrain[4] == 'white'):
             combinations = []
             for i in range(0, N - 1):
@@ -89,7 +92,7 @@ def makeCNF(constraints):
                 x4 = transformCell(itemgetter(*[2, 3])(constrain) + (i,))
                 combinations.extend([[x1, x2], [x3, x4]])
             cnf.extend(itertools.product(*combinations))
-    
+
         # handle a black dot
         if(constrain[4] == 'black'):
             combinations = []
@@ -111,43 +114,39 @@ def makeCNF(constraints):
 
 
 '''
-# 
 mean = 0
 
 for dots in range(35, 62):
     total = 0
     counter = 0
-    for sudoku in data:
-    
-        if(len(data[sudoku]) == dots):
-    
+    for sudoku in sudokus:
+        if(len(sudokus[sudoku]["data"]) == dots):
+
             counter = counter + 1
-    
+
             # start timer
             start_time = time.process_time()
-        
+
             # constraints
-            constraints = data[sudoku]
-            
+            constraints = sudokus[sudoku]["data"]
+
             # make cnf
             cnf = makeCNF(constraints)
-            
+
             # solve
             solution = pycosat.solve(cnf)
-            
+
             # stop time and append it to the list
             runtime = time.process_time() - start_time
-    
+
             total = total + runtime
-    
-    if(counter != 0): mean = total / counter
+
+    if(counter != 0):
+        mean = total / counter
     print('dots: ', str(dots), 'mean: ', str(mean), 'length: ', str(counter))
+'''
 
-  
-''' 
-
-
-cnf = makeCNF(data['059.raw.gif'])
+cnf = makeCNF(sudokus['059']["data"])
 
 # print solutions
 for solution in pycosat.itersolve(cnf):
@@ -159,18 +158,6 @@ for solution in pycosat.itersolve(cnf):
         if (i + 1) % N == 0:
             print(" ")
     print(" ")
-
-'''
-for solution in pycosat.itersolve(cnf):
-    X = [inverse_transform(v) for v in solution if v > 0]
-    sol = []
-    for i, cell in enumerate(sorted(X, key=lambda h: h[0] * N * N + h[1] * N)):
-        # print(cell[2] + 1, " ", end='')
-        sol.append(cell[2] + 1)
-        # if (i + 1) % N == 0:
-        #     print(" ")
-    # print(" ")
-    if sol == soldata[solutions[0][1]]:
+    if sol == sudokus['059']["solution"]:
         print("Found the correct solution:")
         print(sol)
-'''
