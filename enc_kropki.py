@@ -1,4 +1,4 @@
-# author: Petra Ormel, 2017
+# author: Petra Ormel & Michiel van der Meer, 2017
 
 from operator import itemgetter
 import itertools
