@@ -110,16 +110,16 @@ def makeCNF(constraints):
     return cnf
 
 
-
-
+'''
+# 
 mean = 0
 
-for dots in range(0, 1):
+for dots in range(35, 62):
     total = 0
     counter = 0
     for sudoku in data:
     
-        if(len(data[sudoku]) == 61):
+        if(len(data[sudoku]) == dots):
     
             counter = counter + 1
     
@@ -134,8 +134,6 @@ for dots in range(0, 1):
             
             # solve
             solution = pycosat.solve(cnf)
-
-            print(solution)
             
             # stop time and append it to the list
             runtime = time.process_time() - start_time
@@ -146,29 +144,33 @@ for dots in range(0, 1):
     print('dots: ', str(dots), 'mean: ', str(mean), 'length: ', str(counter))
 
   
+''' 
 
 
+cnf = makeCNF(data['059.raw.gif'])
 
+# print solutions
+for solution in pycosat.itersolve(cnf):
+    X = [inverse_transform(v) for v in solution if v > 0]
+    sol = []
+    for i, cell in enumerate(sorted(X, key=lambda h: h[0] * N * N + h[1] * N)):
+        print(cell[2] + 1, " ", end='')
+        sol.append(cell[2] + 1)
+        if (i + 1) % N == 0:
+            print(" ")
+    print(" ")
 
-# print 
-#X = [inverse_transform(v) for v in solution if v > 0]
-#sol = []
-#for i, cell in enumerate(sorted(X, key=lambda h: h[0] * N * N + h[1] * N)):
-#    print(cell[2] + 1, " ", end='')
-#    sol.append(cell[2] + 1)
-#    if (i + 1) % N == 0:
-#        print(" ")
-
-
-#for solution in pycosat.itersolve(cnf):
-#    X = [inverse_transform(v) for v in solution if v > 0]
-#    sol = []
-#    for i, cell in enumerate(sorted(X, key=lambda h: h[0] * N * N + h[1] * N)):
-#        # print(cell[2] + 1, " ", end='')
-#        sol.append(cell[2] + 1)
-#        # if (i + 1) % N == 0:
-#        #     print(" ")
-#    # print(" ")
-#    if sol == soldata[solutions[0][1]]:
-#        print("Found the correct solution:")
-#        print(sol)
+'''
+for solution in pycosat.itersolve(cnf):
+    X = [inverse_transform(v) for v in solution if v > 0]
+    sol = []
+    for i, cell in enumerate(sorted(X, key=lambda h: h[0] * N * N + h[1] * N)):
+        # print(cell[2] + 1, " ", end='')
+        sol.append(cell[2] + 1)
+        # if (i + 1) % N == 0:
+        #     print(" ")
+    # print(" ")
+    if sol == soldata[solutions[0][1]]:
+        print("Found the correct solution:")
+        print(sol)
+'''

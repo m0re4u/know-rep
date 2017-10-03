@@ -1,4 +1,6 @@
 # author: Petra Ormel, 2017
+# author: Michiel van der Meer, 2017
+# based on https://gist.github.com/nickponline/9c91fe65fef5b58ae1b0
 
 from operator import itemgetter
 import itertools
@@ -6,7 +8,10 @@ import json
 import sys
 import pycosat
 import re
+import time
+import random
 
+# open data
 with open('parsed.json') as data_file:
     data = json.load(data_file)
 
@@ -22,16 +27,14 @@ for name in data:
             "data": data[name]
         }
 
-print("Found {} sudoku/solution combinations!".format(len(sudokus)))
-
-# constants
+# constraints
 N = 9
 M = 3
 
 # 9 * 9 * 9 variables for standard sudoku
 nVar = 729
 
-
+# encode exactly one
 def exactly_one(variables):
     cnf = [variables]
     n = len(variables)
@@ -44,18 +47,18 @@ def exactly_one(variables):
 
     return cnf
 
-
+# transform cell and number to one number
 def transform(i, j, k):
     return i * N * N + j * N + k + 1
 
-
+# get next number that represents a comander variable
 def getNextVar():
     global nVar
     x = nVar
     nVar += 1
     return x
 
-
+# tranform number again in column, row and number
 def inverse_transform(v):
     if v <= N * N * N:
         # Only print the values that represent a digit in a cell
@@ -67,11 +70,11 @@ def inverse_transform(v):
         return None
     return i, j, k
 
-
+# does the same as transform but takes an other form of a cell as parameter
 def transformCell(cell):
     return cell[0] * N * N + cell[1] * N + cell[2] + 1
 
-
+# transform two adjacent cells to one number
 def transformBorder(var1, var2):
     """
     Get variables used in the improved encoding
@@ -89,81 +92,137 @@ def transformBorder(var1, var2):
         return
     return N * N * N + N * var1 + var2
 
+# make cnf from constraints
+def makeCNF(constraints):
 
-cnf = []
+    cnf = []
+    
+    # Cell, row and column constraints
+    for i in range(N):
+        for s in range(N):
+            cnf = cnf + exactly_one([transform(i, j, s) for j in range(N)])
+            cnf = cnf + exactly_one([transform(j, i, s) for j in range(N)])
+    
+        for j in range(N):
+            cnf = cnf + exactly_one([transform(i, j, k) for k in range(N)])
+    
+    # Sub-matrix constraints - blocks!
+    for k in range(N):
+        for x in range(M):
+            for y in range(M):
+                v = [transform(y * M + i, x * M + j, k)
+                     for i in range(M) for j in range(M)]
+                cnf = cnf + exactly_one(v)
 
-# Cell, row and column constraints
-for i in range(N):
-    for s in range(N):
-        cnf = cnf + exactly_one([transform(i, j, s) for j in range(N)])
-        cnf = cnf + exactly_one([transform(j, i, s) for j in range(N)])
+    # Count constraints
+    white_counter = 0
+    black_counter = 0
+    # Count clauses added per contraint type
+    white_added = 0
+    black_added = 0
+    
+    for constrain in constraints:
+        # handle a white dot
+        if(constrain[4] == 'white'):
+            white_counter += 1
+            combinations = []
+            for i in range(N):
+                x1 = transformCell((constrain[0], constrain[1], i))
+                x2 = transformCell((constrain[2], constrain[3], i + 1))
+                x3 = transformCell((constrain[0], constrain[1], i + 1))
+                x4 = transformCell((constrain[2], constrain[3], i))
+                combinations.extend([[x1, x2], [x3, x4]])
+            newlist = []
+            helper_vars = []
+            for comb in combinations:
+                dvar = getNextVar()
+                newlist.extend([[-dvar, comb[0]], [-dvar, comb[1]]])
+                helper_vars.append(dvar)
+            cnf.append(helper_vars)
+            cnf.extend(newlist)
+            white_added += len(newlist) + 1
+    
+        # handle a black dot
+        if(constrain[4] == 'black'):
+            black_counter += 1
+            combinations = []
+            for i in range(1, N):
+                for j in range(1, N):
+                    if(j / 2 == i):
+                        x1 = transformCell((constrain[0], constrain[1], i - 1))
+                        x2 = transformCell((constrain[2], constrain[3], j - 1))
+                        x3 = transformCell((constrain[0], constrain[1], j - 1))
+                        x4 = transformCell((constrain[2], constrain[3], i - 1))
+                        combinations.extend([[x1, x2], [x3, x4]])
+            helper_vars = []
+            newlist = []
+            for comb in combinations:
+                dvar = getNextVar()
+                newlist.extend([[-dvar, comb[0]], [-dvar, comb[1]]])
+                helper_vars.append(dvar)
+            black_added += len(newlist) + 1
+            cnf.append(helper_vars)
+            cnf.extend(newlist)
 
-    for j in range(N):
-        cnf = cnf + exactly_one([transform(i, j, k) for k in range(N)])
+    return cnf
 
-# Sub-matrix constraints - blocks!
-for k in range(N):
-    for x in range(M):
-        for y in range(M):
-            v = [transform(y * M + i, x * M + j, k)
-                 for i in range(M) for j in range(M)]
-            cnf = cnf + exactly_one(v)
+'''
+# every time substract one random dot from the constraints and calculate the mean process time
+total = 0
 
-# Constraints given by kropki
-constraints = sudokus["057"]["data"]
-# Count constraints
-white_counter = 0
-black_counter = 0
-# Count clauses added per contraint type
-white_added = 0
-black_added = 0
+for sudoku in data:
+    constraints = data[sudoku]
+    random.shuffle(constraints)
+    for i in range(36):
+        constraints.pop()
+    start_time = time.process_time()
+    cnf = makeCNF(constraints)
+    solution = pycosat.solve(cnf)
+    runtime = time.process_time() - start_time
+    total = total + runtime
 
-for constrain in constraints:
-    # handle a white dot
-    if(constrain[4] == 'white'):
-        white_counter += 1
-        combinations = []
-        for i in range(N):
-            x1 = transformCell((constrain[0], constrain[1], i))
-            x2 = transformCell((constrain[2], constrain[3], i + 1))
-            x3 = transformCell((constrain[0], constrain[1], i + 1))
-            x4 = transformCell((constrain[2], constrain[3], i))
-            combinations.extend([[x1, x2], [x3, x4]])
-        newlist = []
-        helper_vars = []
-        for comb in combinations:
-            dvar = getNextVar()
-            newlist.extend([[-dvar, comb[0]], [-dvar, comb[1]]])
-            helper_vars.append(dvar)
-        cnf.append(helper_vars)
-        cnf.extend(newlist)
-        white_added += len(newlist) + 1
-
-    # handle a black dot
-    if(constrain[4] == 'black'):
-        black_counter += 1
-        combinations = []
-        for i in range(1, N):
-            for j in range(1, N):
-                if(j / 2 == i):
-                    x1 = transformCell((constrain[0], constrain[1], i - 1))
-                    x2 = transformCell((constrain[2], constrain[3], j - 1))
-                    x3 = transformCell((constrain[0], constrain[1], j - 1))
-                    x4 = transformCell((constrain[2], constrain[3], i - 1))
-                    combinations.extend([[x1, x2], [x3, x4]])
-        helper_vars = []
-        newlist = []
-        for comb in combinations:
-            dvar = getNextVar()
-            newlist.extend([[-dvar, comb[0]], [-dvar, comb[1]]])
-            helper_vars.append(dvar)
-        black_added += len(newlist) + 1
-        cnf.append(helper_vars)
-        cnf.extend(newlist)
+mean = total/len(data)
+print('mean: ', mean)
 
 
-print("Generated {} clauses for {} white circles and {} black circles".format(len(cnf), white_counter, black_counter))
-print("White clauses: {} | black clauses: {}".format(white_added, black_added))
+
+
+# get statistics for different number of dots
+mean = 0
+
+for dots in range(35, 62):
+    total = 0
+    counter = 0
+    for sudoku in data:
+    
+        if(len(data[sudoku]) == dots):
+    
+            counter = counter + 1
+    
+            # start timer
+            start_time = time.process_time()
+        
+            # constraints
+            constraints = data[sudoku]
+            
+            # make cnf
+            cnf = makeCNF(constraints)
+            
+            # solve
+            solution = pycosat.solve(cnf)
+            
+            # stop time and append it to the list
+            runtime = time.process_time() - start_time
+    
+            total = total + runtime
+    
+    if(counter != 0): mean = total / counter
+    print('dots: ', str(dots), 'mean: ', str(mean), 'length: ', str(counter))
+''' 
+
+
+cnf = makeCNF(sudokus["057"]["data"])
+# print output
 N_solutions = 0
 for solution in pycosat.itersolve(cnf, verbose=0):
     X = [inverse_transform(v) for v in solution if v > 0 and inverse_transform(v) is not None]
