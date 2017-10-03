@@ -14,7 +14,12 @@ To generate the dataset from scratch:
 python3 kropki_generate.py -dpw
 ```
 
-To solve a sudoku:
+To solve a sudoku with the naive encoding:
 ```
 python3 kropki_solve.py
+```
+
+To solve a sudoku with the improved encoding:
+```
+python3 enc_kropki.py
 ```
