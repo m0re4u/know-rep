@@ -34,6 +34,7 @@ M = 3
 # 9 * 9 * 9 variables for standard sudoku
 nVar = 729
 
+
 # encode exactly one
 def exactly_one(variables):
     cnf = [variables]
@@ -47,9 +48,11 @@ def exactly_one(variables):
 
     return cnf
 
+
 # transform cell and number to one number
 def transform(i, j, k):
     return i * N * N + j * N + k + 1
+
 
 # get next number that represents a comander variable
 def getNextVar():
@@ -57,6 +60,7 @@ def getNextVar():
     x = nVar
     nVar += 1
     return x
+
 
 # tranform number again in column, row and number
 def inverse_transform(v):
@@ -70,9 +74,11 @@ def inverse_transform(v):
         return None
     return i, j, k
 
+
 # does the same as transform but takes an other form of a cell as parameter
 def transformCell(cell):
     return cell[0] * N * N + cell[1] * N + cell[2] + 1
+
 
 # transform two adjacent cells to one number
 def transformBorder(var1, var2):
@@ -92,20 +98,21 @@ def transformBorder(var1, var2):
         return
     return N * N * N + N * var1 + var2
 
+
 # make cnf from constraints
 def makeCNF(constraints):
 
     cnf = []
-    
+
     # Cell, row and column constraints
     for i in range(N):
         for s in range(N):
             cnf = cnf + exactly_one([transform(i, j, s) for j in range(N)])
             cnf = cnf + exactly_one([transform(j, i, s) for j in range(N)])
-    
+
         for j in range(N):
             cnf = cnf + exactly_one([transform(i, j, k) for k in range(N)])
-    
+
     # Sub-matrix constraints - blocks!
     for k in range(N):
         for x in range(M):
@@ -120,7 +127,7 @@ def makeCNF(constraints):
     # Count clauses added per contraint type
     white_added = 0
     black_added = 0
-    
+
     for constrain in constraints:
         # handle a white dot
         if(constrain[4] == 'white'):
@@ -141,7 +148,7 @@ def makeCNF(constraints):
             cnf.append(helper_vars)
             cnf.extend(newlist)
             white_added += len(newlist) + 1
-    
+
         # handle a black dot
         if(constrain[4] == 'black'):
             black_counter += 1
@@ -165,6 +172,7 @@ def makeCNF(constraints):
             cnf.extend(newlist)
 
     return cnf
+
 
 '''
 # every time substract one random dot from the constraints and calculate the mean process time
@@ -194,31 +202,31 @@ for dots in range(35, 62):
     total = 0
     counter = 0
     for sudoku in data:
-    
+
         if(len(data[sudoku]) == dots):
-    
+
             counter = counter + 1
-    
+
             # start timer
             start_time = time.process_time()
-        
+
             # constraints
             constraints = data[sudoku]
-            
+
             # make cnf
             cnf = makeCNF(constraints)
-            
+
             # solve
             solution = pycosat.solve(cnf)
-            
+
             # stop time and append it to the list
             runtime = time.process_time() - start_time
-    
+
             total = total + runtime
-    
+
     if(counter != 0): mean = total / counter
     print('dots: ', str(dots), 'mean: ', str(mean), 'length: ', str(counter))
-''' 
+'''
 
 
 cnf = makeCNF(sudokus["057"]["data"])
